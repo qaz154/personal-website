@@ -4,27 +4,30 @@ import { cookies } from 'next/headers';
 
 export type Database = any; // Will be replaced with generated types
 
-// Server-side client for Server Components, Server Actions, etc.
-export function createSupabaseServerClient() {
-  const cookieStore = cookies();
+// Server-side client for Server Components
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies();
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
+        async get(name: string) {
+          return (await cookieStore).get(name)?.value;
         },
-        setAll(cookiesToSet) {
+        async set(name: string, value: string, options: any) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
+            (await cookieStore).set(name, value, options);
           } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // Handle error
+          }
+        },
+        async remove(name: string, options: any) {
+          try {
+            (await cookieStore).set(name, '', { ...options, maxAge: 0 });
+          } catch {
+            // Handle error
           }
         },
       },
@@ -40,7 +43,7 @@ export function createSupabaseBrowserClient() {
   );
 }
 
-// Admin client with service role key (use carefully, only in server environments)
+// Admin client with service role key
 export function createSupabaseAdminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,8 +52,6 @@ export function createSupabaseAdminClient() {
 }
 
 // Helper to get Supabase client based on context
-export function getSupabaseClient() {
-  // This function will be used in server components/actions
-  // For client components, use createSupabaseBrowserClient()
+export async function getSupabaseClient() {
   return createSupabaseServerClient();
 }
